@@ -8,10 +8,15 @@ var webpack = require('webpack'),
 var { CleanWebpackPlugin } = require('clean-webpack-plugin');
 var ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 var ReactRefreshTypeScript = require('react-refresh-typescript');
-
+var FriendlyErrorsWebpackPlugin = require('friendly-errors-webpack-plugin');
 const ASSET_PATH = process.env.ASSET_PATH || '/';
 
-var alias = {};
+var alias = {
+  "@": path.resolve(__dirname, "./src"),
+  "buffer": path.resolve(__dirname, 'node_modules/buffer'),
+  "bn.js": path.resolve(__dirname, 'node_modules/bn.js'),
+  'ethereumjs-util': path.resolve(__dirname, 'node_modules/ethereumjs-util'),
+};
 
 // load the secrets
 var secretsPath = path.join(__dirname, 'secrets.' + env.NODE_ENV + '.js');
@@ -38,16 +43,11 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 var options = {
   mode: process.env.NODE_ENV || 'development',
   entry: {
-    newtab: path.join(__dirname, 'src', 'pages', 'Newtab', 'index.jsx'),
-    options: path.join(__dirname, 'src', 'pages', 'Options', 'index.jsx'),
-    popup: path.join(__dirname, 'src', 'pages', 'Popup', 'index.jsx'),
-    background: path.join(__dirname, 'src', 'pages', 'Background', 'index.js'),
-    contentScript: path.join(__dirname, 'src', 'pages', 'Content', 'index.js'),
-    devtools: path.join(__dirname, 'src', 'pages', 'Devtools', 'index.js'),
-    panel: path.join(__dirname, 'src', 'pages', 'Panel', 'index.jsx'),
+    home: path.join(__dirname, 'src', 'pages', 'Home', 'index.jsx'),
+    background: path.join(__dirname, 'src', 'pages', 'Background', 'index.js')
   },
   chromeExtensionBoilerplate: {
-    notHotReload: ['background', 'contentScript', 'devtools'],
+    notHotReload: ['background'],
   },
   output: {
     filename: '[name].bundle.js',
@@ -59,7 +59,20 @@ var options = {
     rules: [
       {
         // look for .css or .scss files
-        test: /\.(css|scss)$/,
+        test: /\.css$/,
+        // in the `src` directory
+        use: [
+          {
+            loader: 'style-loader',
+          },
+          {
+            loader: 'css-loader',
+          }
+        ],
+      },
+      {
+        // look for .css or .scss files
+        test: /\.s[ac]ss$/,
         // in the `src` directory
         use: [
           {
@@ -131,6 +144,22 @@ var options = {
     extensions: fileExtensions
       .map((extension) => '.' + extension)
       .concat(['.js', '.jsx', '.ts', '.tsx', '.css']),
+    fallback: {
+      https: require.resolve('https-browserify'),
+      http: require.resolve("stream-http"),
+      crypto: require.resolve("crypto-browserify"),
+      stream: require.resolve("stream-browserify"),
+      assert: require.resolve("assert"),
+      os: require.resolve("os-browserify"),
+      url: require.resolve("url"),
+      constants: require.resolve("constants-browserify"),
+      zlib: require.resolve("browserify-zlib"),
+      util: require.resolve("util"),
+      path: require.resolve("path-browserify"),
+      net: require.resolve("net"),
+      async_hooks: false,
+      fs: false,
+    },
   },
   plugins: [
     isDevelopment && new ReactRefreshWebpackPlugin(),
@@ -160,60 +189,54 @@ var options = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: 'src/pages/Content/content.styles.css',
-          to: path.join(__dirname, 'build'),
-          force: true,
-        },
-      ],
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        {
-          from: 'src/assets/img/icon-128.png',
-          to: path.join(__dirname, 'build'),
-          force: true,
-        },
-      ],
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        {
-          from: 'src/assets/img/icon-34.png',
+          from: 'src/assets/img/logo.png',
           to: path.join(__dirname, 'build'),
           force: true,
         },
       ],
     }),
     new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'pages', 'Newtab', 'index.html'),
-      filename: 'newtab.html',
-      chunks: ['newtab'],
+      template: path.join(__dirname, 'src', 'pages', 'Home', 'index.html'),
+      filename: 'home.html',
+      chunks: ['home'],
       cache: false,
     }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'pages', 'Options', 'index.html'),
-      filename: 'options.html',
-      chunks: ['options'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'pages', 'Popup', 'index.html'),
-      filename: 'popup.html',
-      chunks: ['popup'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'pages', 'Devtools', 'index.html'),
-      filename: 'devtools.html',
-      chunks: ['devtools'],
-      cache: false,
-    }),
-    new HtmlWebpackPlugin({
-      template: path.join(__dirname, 'src', 'pages', 'Panel', 'index.html'),
-      filename: 'panel.html',
-      chunks: ['panel'],
-      cache: false,
-    }),
+    new FriendlyErrorsWebpackPlugin(),
+    new webpack.ProvidePlugin({
+      process: 'process/browser.js',
+      Buffer: ['buffer', 'Buffer']
+		}),
+    new webpack.NormalModuleReplacementPlugin(/node:/, (resource) => {
+      const mod = resource.request.replace(/^node:/, "");
+      switch (mod) {
+          case "buffer":
+            resource.request = "buffer";
+            break;
+          case "http":
+            resource.request = "http";
+            break;
+          case "https":
+            resource.request = "https";
+            break;
+          case "stream":
+            resource.request = "stream";
+            break;
+          case "url":
+            resource.request = "url";
+            break;
+          case "zlib":
+            resource.request = "zlib";
+            break;
+          case "util":
+            resource.request = "util";
+            break;
+          case "net":
+            resource.request = "net";
+            break;
+          default:
+              throw new Error(`Not found ${mod}`);
+      }
+  }),
   ].filter(Boolean),
   infrastructureLogging: {
     level: 'info',
