@@ -5,7 +5,7 @@ const { keccak256, toUtf8Bytes, splitSignature } = utils;
 import request from "./request";
 import { _TypedDataEncoder } from "@ethersproject/hash";
 import createMetaMaskProvider from 'metamask-extension-provider';
-
+import './index.css'
 /*const hash = '0x57fc0a0f2d0fd768be76019da544405c267749679fff47c3e810e7f1381fdaa1';
 const sig = '0xeff4d2fe54dfacf17134f57d368c38d036e9539667dcb81ed369a676d98ad7ea6142602455e10b24163691eb0a97027dcbb60591690320380b9ba3f2a109eff300';
 const recoveredAddress = ethers.utils.recoverAddress(hash, sig);
